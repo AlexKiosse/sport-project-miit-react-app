@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import loginImage from '../../../images/Miit.jpg';
+import loginImage from '../../../shared/images/Miit.jpg';
 
 const MOCK_LOGIN = 'admin';
 const MOCK_PASSWORD = 'admin';
