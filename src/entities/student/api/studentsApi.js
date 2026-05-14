@@ -1,4 +1,7 @@
+import axios from 'axios';
 import { apiClient } from '../../../shared/lib/api/axios';
+import { CreateStudentDuplicateLoginError } from '../lib/errors';
+import { isStudentResponseShape } from '../lib/isStudentResponse';
 
 export const studentsApi = {
   getAllStudents: async () => {
@@ -27,6 +30,13 @@ export const studentsApi = {
     return response.data;
   },
 
+  getStudentsByHealthGroup: async (healthGroupId) => {
+    const response = await apiClient.get('/api/students/find-by-health-group', {
+      params: { 'health-group-id': healthGroupId }
+    });
+    return response.data;
+  },
+
   getStudentsBySection: async (sectionId) => {
     const response = await apiClient.get('/api/students/find-by-section', {
       params: { 'section-id': sectionId }
@@ -35,9 +45,34 @@ export const studentsApi = {
   },
 
 
-  createStudent: async (studentData) => {
-    const response = await apiClient.post('/api/students/create', studentData);
-    return response.data;
+  /**
+   * POST /api/students/create. Успех: HTTP 201, тело — Student.
+   * Ошибка 400 (логин занят): то же тело Student; выбрасывается CreateStudentDuplicateLoginError.
+   *
+   * @param {import('../model/types').CreateStudent} payload
+   * @returns {Promise<import('../model/types').Student>}
+   */
+  createStudent: async (payload) => {
+    try {
+      const response = await apiClient.post('/api/students/create', payload);
+      const { status, data } = response;
+      if (status === 201) {
+        return data;
+      }
+      throw new Error(`Создание студента: ожидался HTTP 201, получен ${status}`);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const data = error.response?.data;
+        if (status === 400 && isStudentResponseShape(data)) {
+          throw new CreateStudentDuplicateLoginError(
+            'Студент с таким логином уже существует.',
+            data
+          );
+        }
+      }
+      throw error;
+    }
   },
 
   deleteStudentById: async (id) => {

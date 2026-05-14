@@ -207,6 +207,13 @@
   color: #888;
 }
 
+.table-header > .subtitle:only-child {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #0d2b4e;
+}
+
 .students-table {
   width: 100%;
   border-collapse: collapse;
@@ -332,6 +339,64 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
+.add-user-panel {
+  position: relative;
+  /* visible: календарь datepicker не обрезается внутри панели */
+  overflow: visible;
+}
+
+.add-user-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border-radius: 16px;
+}
+
+.spinner-circle {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e3eaf2;
+  border-top-color: #4a90e2;
+  border-radius: 50%;
+  animation: admin-spin 0.75s linear infinite;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.add-user-loading-overlay p {
+  margin: 0;
+  font-size: 14px;
+  color: #0d2b4e;
+  font-weight: 500;
+}
+
+.retry-groups-btn {
+  margin-top: 8px;
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #4a90e2;
+  background: #fff;
+  color: #0d2b4e;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retry-groups-btn:hover {
+  background: #f0f7ff;
+}
+
 .panel-header {
   margin-bottom: 25px;
 }
@@ -381,6 +446,87 @@
 .form-input:focus {
   outline: none;
   border-color: #4a90e2;
+}
+
+select.form-input {
+  cursor: pointer;
+  background: white;
+}
+
+.admin-notices {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-alert--error {
+  background: #fdecea;
+  color: #611a15;
+  border: 1px solid #f5c6cb;
+}
+
+.form-alert--success {
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #a5d6a7;
+}
+
+.form-alert-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-alert-dismiss {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0 4px;
+}
+
+.form-alert-dismiss:hover {
+  opacity: 1;
+}
+
+.form-alert--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.form-alert__detail {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.45;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.form-row--triple {
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .form-buttons {
@@ -448,6 +594,41 @@
   background: #4a90e2;
 }
 
+.search-form-extended {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.search-mode-group {
+  max-width: 420px;
+}
+
+.search-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.search-name-row {
+  margin-bottom: 0;
+}
+
+.search-all-hint {
+  margin-bottom: 0;
+}
+
+.search-error {
+  margin-top: 0;
+}
+
+.search-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Результаты поиска */
 .search-results {
   margin-top: 25px;
@@ -487,6 +668,120 @@
   text-align: center;
   padding: 40px;
   color: #888;
+}
+
+/* Поле пароля с переключением видимости */
+.password-input-wrap {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.password-input-wrap .password-input {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.password-visibility-btn {
+  flex-shrink: 0;
+  padding: 0 14px;
+  border: 1px solid #ddd;
+  border-left: none;
+  background: #f8f9fb;
+  color: #0d2b4e;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.password-visibility-btn:hover {
+  background: #e8eef5;
+}
+
+.password-visibility-btn:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 0;
+  z-index: 1;
+}
+
+/* react-datepicker: поле и календарь */
+.datepicker-field-wrap,
+.datepicker-field-wrap .react-datepicker-wrapper {
+  width: 100%;
+  display: block;
+}
+
+.datepicker-field-wrap .react-datepicker__input-container {
+  width: 100%;
+}
+
+.datepicker-field-wrap .react-datepicker__input-container input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-datepicker-popper {
+  z-index: 300 !important;
+}
+
+.admin-datepicker-calendar.react-datepicker {
+  font-family: inherit;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  box-shadow: 0 10px 32px rgba(13, 43, 78, 0.15);
+  overflow: hidden;
+}
+
+.admin-datepicker-calendar .react-datepicker__header {
+  background: #0d2b4e;
+  border-bottom: none;
+  padding-top: 12px;
+}
+
+.admin-datepicker-calendar .react-datepicker__current-month,
+.admin-datepicker-calendar .react-datepicker-day-name {
+  color: #fff;
+}
+
+.admin-datepicker-calendar .react-datepicker__day-name {
+  opacity: 0.9;
+}
+
+.admin-datepicker-calendar .react-datepicker__day--selected,
+.admin-datepicker-calendar .react-datepicker__day--keyboard-selected {
+  background-color: #4a90e2 !important;
+  color: #fff !important;
+}
+
+.admin-datepicker-calendar .react-datepicker__day:hover {
+  background-color: #e3eef9 !important;
+}
+
+.admin-datepicker-calendar .react-datepicker__day--today {
+  font-weight: 700;
+}
+
+.admin-datepicker-calendar .react-datepicker__navigation-icon::before {
+  border-color: #fff;
+}
+
+.admin-datepicker-calendar .react-datepicker__year-select,
+.admin-datepicker-calendar .react-datepicker__month-select {
+  margin: 4px 2px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+}
+
+.admin-datepicker-calendar .react-datepicker__close-icon::after {
+  background-color: #4a90e2;
 }
 
 /* Футер */
@@ -538,6 +833,10 @@
   }
   
   .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row--triple {
     grid-template-columns: 1fr;
   }
   

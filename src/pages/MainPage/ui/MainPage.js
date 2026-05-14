@@ -1,5 +1,5 @@
-// src/pages/MainPage/ui/MainPage.js
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './MainPage.css';
 import basketball from '../../../images/basketball.jpg';
 import swim from '../../../images/swim.jpg';
@@ -11,6 +11,7 @@ import bgImage from '../../../images/backgroundImage.jpg';
 
 export const MainPage = () => {
   const [activePage, setActivePage] = useState('home');
+  const navigate = useNavigate();
 
   return (
     <div className="main-page">
@@ -47,7 +48,9 @@ export const MainPage = () => {
             </button>
           </div>
           <div className="nav-right">
-            <button className="login-btn">Вход</button>
+            <button type="button" className="login-btn" onClick={() => navigate('/login')}>
+              Войти
+            </button>
           </div>
         </div>
       </nav>

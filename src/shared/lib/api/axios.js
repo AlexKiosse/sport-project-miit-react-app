@@ -1,7 +1,6 @@
-// src/shared/lib/api/axios.js
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080'
+const API_BASE_URL = 'http://localhost:4444'
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -22,9 +21,9 @@ apiClient.interceptors.response.use(
         }
 
         if (error.response?.status === 403) {
-            alert('Доступ запрещён')
+            alert('Доступ запрещён');
         }
-        
-        return
+
+        return Promise.reject(error);
     }
 );
