@@ -1,72 +1,107 @@
-# Getting Started with Create React App
+# Все на спорт (vse-na-sport)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Фронтенд **спортивного портала РУТ (МИИТ)**: главная страница, вход в систему и **админ-панель** для работы со студентами - список, создание, поиск, справочники групп и медицинских групп. Приложение общается с бэкендом по REST API через `axios`.
 
-## Available Scripts
+Проект собран на **Create React App**, UI на **React 19** и **React Router 7**.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Возможности
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Главная (`/`)** - страница с новостями и навигацией; кнопка **«Войти»** ведёт на форму входа.
+- **Вход (`/login`)** - авторизация (логин `admin`, пароль `admin`), сообщения «Неверный логин» / «Неверный пароль», кнопка **«назад»** на главную; после успеха - переход в админку.
+- **Админ-панель (`/admin`)**:
+  - список студентов с **посещаемостью** из поля `exist` (даты → `true`/`false`);
+  - добавление студента (форма, справочники **учебных групп** и **мед. групп**, дата рождения через календарь);
+  - поиск студентов по логину, ФИО, группе, секции, мед. группе, полный список;
+  - кнопка **«Выйти»** - возврат на главную страницу.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Структура кода ориентирована на **Feature-Sliced Design**: слои `app`, `pages`, `entities`, `shared`.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Требования
 
-### `npm run build`
+- **Node.js** 18+ (рекомендуется LTS)
+- **npm** 9+
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Установка и запуск
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+# клонировать репозиторий и перейти в каталог проекта
+cd sport-project-miit-react-app
 
-### `npm run eject`
+# установить зависимости
+npm install
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# режим разработки (по умолчанию http://localhost:3000)
+npm start
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# production-сборка в каталог build/
+npm run build
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# тесты (интерактивный режим CRA)
+npm test
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+После `npm start` открыть в браузере адрес, который покажет терминал (обычно [http://localhost:3000](http://localhost:3000)).
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Маршруты
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Путь     | Описание                       |
+|----------|--------------------------------|
+| `/`      | Главная страница               |
+| `/login` | Форма входа                    |
+| `/admin` | Админ-панель (студенты, поиск) |
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Логин
 
-### Analyzing the Bundle Size
+Для проверки UI входа используются фиксированные учётные данные:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+| Поле   | Значение |
+|--------|----------|
+| Логин  | `admin`  |
+| Пароль | `admin`  |
 
-### Making a Progressive Web App
+При неверном логине показывается **«Неверный логин»** (пароль не проверяется). При верном логине и неверном пароле - **«Неверный пароль»**. После успешного входа выполняется переход на `/admin`.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+---
 
-### Advanced Configuration
+## Бэкенд API
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Запросы к API идут через **`src/shared/lib/api/axios.js`**.
 
-### Deployment
+- Базовый URL задаётся константой **`API_BASE_URL`** (сейчас по умолчанию `http://localhost:4444` - при необходимости изменить).
+- Для запросов включён **`withCredentials: true`** (куки / сессия, если бэкенд так настроен).
+- При ответе **401** выполняется переход на **`/login`**.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Убедись, что бэкенд запущен и CORS разрешает origin фронта (например `http://localhost:3000`), иначе в консоли браузера будут ошибки сети.
 
-### `npm run build` fails to minify
+Основные эндпоинты, с которыми работает админка (префикс зависит от `baseURL`):
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- студенты: `/api/students/...` (список, создание, поиск и т.д.);
+- группы: `GET /api/group/getAll`;
+- мед. группы: `GET /api/healthGroup/find-all`.
 
-add .env file with REACT_APP_API_URL env
+---
+
+## Структура проекта (кратко)
+
+```
+src/
+  app/                 # корневой layout, маршруты (App.js)
+  pages/               # страницы: MainPage, LoginPage, AdminPage
+  entities/
+    student/           # API студентов, модели (JSDoc), утилиты (посещаемость, payload создания)
+    group/             # API учебных групп
+    healthGroup/       # API медицинских групп
+  shared/
+    lib/api/           # axios-клиент
+    images/            # статичные изображения
+```
