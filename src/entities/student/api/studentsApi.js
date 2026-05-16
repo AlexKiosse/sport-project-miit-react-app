@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiClient } from '../../../shared/lib/api/axios';
+import { apiClient } from '/shared/lib/api/axios';
 import { CreateStudentDuplicateLoginError } from '../lib/errors';
 import { isStudentResponseShape } from '../lib/isStudentResponse';
 
@@ -16,10 +16,18 @@ export const studentsApi = {
     return response.data;
   },
 
+  /**
+   * @param {string} firstName
+   * @param {string} lastName
+   * @param {string} [patronymic] — если пусто, параметр не отправляется (отчество необязательно)
+   */
   searchByFullName: async (firstName, lastName, patronymic = '') => {
-    const response = await apiClient.get('/api/students/find-by-full-name', {
-      params: { 'first-name': firstName, 'last-name': lastName, patronymic }
-    });
+    const params = { 'first-name': firstName, 'last-name': lastName };
+    const patronymicTrimmed = patronymic?.trim();
+    if (patronymicTrimmed) {
+      params.patronymic = patronymicTrimmed;
+    }
+    const response = await apiClient.get('/api/students/find-by-full-name', { params });
     return response.data;
   },
 

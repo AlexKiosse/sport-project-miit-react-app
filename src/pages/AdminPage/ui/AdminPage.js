@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { format, isValid, parse } from 'date-fns';
 import { ru } from 'date-fns/locale/ru';
@@ -8,12 +8,28 @@ import {
   CreateStudentDuplicateLoginError,
   buildCreateStudentPayload,
   normalizeStudentListResponse,
-  computeAttendanceFromExist,
-} from '../../../entities/student';
-import { groupsApi } from '../../../entities/group';
-import { healthGroupsApi } from '../../../entities/healthGroup';
+  formatStudentFullName,
+  filterStudentsByLoginSubstring,
+} from '/entities/student';
+import { FullNameSearchFields } from '/features/full-name-search';
+import { LoginSearchField } from '/features/login-search';
+import { groupsApi } from '/entities/group';
+import {
+  healthGroupsApi,
+  formatHealthGroupLabel,
+  formatHealthGroupValue,
+} from '/entities/healthGroup';
+import { sectionsApi } from '/entities/section';
+import {
+  loadAttendancePercentsForStudents,
+  getAttendancePercentForStudent,
+} from '/shared/lib/attendance/loadAttendancePercentsForStudents';
 import { useNavigate } from 'react-router-dom';
-import './AdminPage.css';
+import '/shared/ui/cabinet';
+import { CabinetLayout } from '/widgets/cabinet-layout';
+import { NoticesBar } from '/widgets/notices-bar';
+import { useTableSort } from '/shared/lib/sort';
+import { SortableTh } from '/shared/ui/sortable-th';
 
 registerLocale('ru', ru);
 
@@ -45,13 +61,34 @@ const initialSearchForm = () => ({
   patronymic: '',
   groupId: '',
   sectionId: '',
-  healthGroupId: 1,
+  healthGroupId: '',
 });
+
+function applyLookupDefaultsToSearchForm(prev, groupsList, healthGroupsList, sectionsList) {
+  const next = { ...prev };
+  if (groupsList.length === 0) {
+    next.groupId = '';
+  } else if (!groupsList.some((g) => String(g.id) === String(prev.groupId))) {
+    next.groupId = String(groupsList[0].id);
+  }
+  if (sectionsList.length === 0) {
+    next.sectionId = '';
+  } else if (!sectionsList.some((s) => String(s.id) === String(prev.sectionId))) {
+    next.sectionId = String(sectionsList[0].id);
+  }
+  if (healthGroupsList.length === 0) {
+    next.healthGroupId = '';
+  } else if (!healthGroupsList.some((h) => String(h.id) === String(prev.healthGroupId))) {
+    next.healthGroupId = String(healthGroupsList[0].id);
+  }
+  return next;
+}
 
 export const AdminPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('students');
   const [students, setStudents] = useState([]);
+  const [attendanceByLogin, setAttendanceByLogin] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -71,34 +108,57 @@ export const AdminPage = () => {
 
   const [groups, setGroups] = useState([]);
   const [healthGroups, setHealthGroups] = useState([]);
+  const [sections, setSections] = useState([]);
   const [addLookupsLoadState, setAddLookupsLoadState] = useState('idle');
   const [addLookupsError, setAddLookupsError] = useState('');
 
-  // Статистика
-  const [statistics, setStatistics] = useState({
-    averageAttendance: '',
-    totalStudents: '',
-    totalClasses: '',
-    bestStudent: { name: '', attendance: '' }
-  });
-
-  // Загрузка данных при монтировании
-  useEffect(() => {
-    fetchStudents();
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await studentsApi.getAllStudents();
+      const list = Array.isArray(data) ? data : [];
+      setStudents(list);
+      const percents = await loadAttendancePercentsForStudents(list);
+      setAttendanceByLogin(percents);
+    } catch (err) {
+      console.error('Ошибка загрузки студентов:', err);
+      setError('Не удалось загрузить список студентов');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchAddFormLookups = useCallback(async () => {
+  // Загрузка при открытии страницы и когда вкладка снова становится активной
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStudents();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [fetchStudents]);
+
+  const fetchLookups = useCallback(async () => {
     setAddLookupsError('');
     setAddLookupsLoadState('loading');
     try {
-      const [groupsData, healthData] = await Promise.all([
+      const [groupsData, healthData, sectionsData] = await Promise.all([
         groupsApi.getAll(),
         healthGroupsApi.findAll(),
+        sectionsApi.getAll(),
       ]);
       const gList = Array.isArray(groupsData) ? groupsData : [];
       const hList = Array.isArray(healthData) ? healthData : [];
+      const sList = Array.isArray(sectionsData) ? sectionsData : [];
       setGroups(gList);
       setHealthGroups(hList);
+      setSections(sList);
       setNewStudent((prev) => {
         const next = { ...prev };
         if (gList.length === 0) {
@@ -113,41 +173,33 @@ export const AdminPage = () => {
         }
         return next;
       });
+      setSearchForm((prev) => applyLookupDefaultsToSearchForm(prev, gList, hList, sList));
       setAddLookupsLoadState('success');
     } catch (err) {
       console.error('Ошибка загрузки справочников:', err);
       setGroups([]);
       setHealthGroups([]);
+      setSections([]);
       setAddLookupsLoadState('error');
-      setAddLookupsError('Не удалось загрузить справочники (учебные группы или мед. группы)');
+      setAddLookupsError(
+        'Не удалось загрузить справочники (учебные группы, мед. группы или секции)'
+      );
     }
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'add') {
+    if (activeTab !== 'add' && activeTab !== 'search') {
       return undefined;
     }
-    fetchAddFormLookups();
+    fetchLookups();
     return undefined;
-  }, [activeTab, fetchAddFormLookups]);
+  }, [activeTab, fetchLookups]);
 
-  const fetchStudents = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await studentsApi.getAllStudents();
-      setStudents(data);
-      setStatistics(prev => ({
-        ...prev,
-        totalStudents: data.length
-      }));
-    } catch (err) {
-      console.error('Ошибка загрузки студентов:', err);
-      setError('Не удалось загрузить список студентов');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (activeTab === 'search' && students.length === 0 && !loading) {
+      fetchStudents();
     }
-  };
+  }, [activeTab, students.length, loading, fetchStudents]);
 
   const handleSearch = async (e) => {
     if (e && typeof e.preventDefault === 'function') {
@@ -166,16 +218,32 @@ export const AdminPage = () => {
       }
     }
     if (searchForm.mode === 'group') {
-      const gid = Number(searchForm.groupId);
-      if (!Number.isFinite(gid) || gid < 1) {
-        setSearchError('Укажите корректный числовой ID группы (group-id).');
+      if (addLookupsLoadState !== 'success' || groups.length === 0) {
+        setSearchError('Справочник учебных групп не загружен.');
+        return;
+      }
+      if (!groups.some((g) => String(g.id) === String(searchForm.groupId))) {
+        setSearchError('Выберите учебную группу из списка.');
         return;
       }
     }
     if (searchForm.mode === 'section') {
-      const sid = Number(searchForm.sectionId);
-      if (!Number.isFinite(sid) || sid < 1) {
-        setSearchError('Укажите корректный числовой ID секции (section-id).');
+      if (addLookupsLoadState !== 'success' || sections.length === 0) {
+        setSearchError('Справочник секций не загружен.');
+        return;
+      }
+      if (!sections.some((s) => String(s.id) === String(searchForm.sectionId))) {
+        setSearchError('Выберите секцию из списка.');
+        return;
+      }
+    }
+    if (searchForm.mode === 'healthGroup') {
+      if (addLookupsLoadState !== 'success' || healthGroups.length === 0) {
+        setSearchError('Справочник медицинских групп не загружен.');
+        return;
+      }
+      if (!healthGroups.some((h) => String(h.id) === String(searchForm.healthGroupId))) {
+        setSearchError('Выберите медицинскую группу из списка.');
         return;
       }
     }
@@ -185,10 +253,13 @@ export const AdminPage = () => {
       let data;
       switch (searchForm.mode) {
         case 'login': {
-          try {
-            data = await studentsApi.getStudentByLogin(searchForm.login.trim());
-          } catch {
-            data = null;
+          if (students.length === 0) {
+            const all = await studentsApi.getAllStudents();
+            const list = Array.isArray(all) ? all : [];
+            setStudents(list);
+            data = filterStudentsByLoginSubstring(list, searchForm.login);
+          } else {
+            data = filterStudentsByLoginSubstring(students, searchForm.login);
           }
           break;
         }
@@ -214,8 +285,13 @@ export const AdminPage = () => {
         default:
           data = [];
       }
-      setSearchResults(normalizeStudentListResponse(data));
+      const normalized = normalizeStudentListResponse(data);
+      setSearchResults(normalized);
       setShowSearchResults(true);
+      if (normalized.length > 0) {
+        const percents = await loadAttendancePercentsForStudents(normalized);
+        setAttendanceByLogin((prev) => ({ ...prev, ...percents }));
+      }
     } catch (err) {
       console.error('Ошибка поиска:', err);
       let message = 'Не удалось выполнить поиск.';
@@ -343,39 +419,51 @@ export const AdminPage = () => {
     }
   };
 
-  // Для отображения в таблице (адаптация данных из бэка)
-  const displayStudents = students.map((student) => ({
-    id: student.id,
-    name: `${student.lastName} ${student.firstName} ${student.patronymic || ''}`,
-    studentId: student.login,
-    attendance: computeAttendanceFromExist(student.exist),
-  }));
+  const listSort = useTableSort('name', 'asc');
+  const searchSort = useTableSort('name', 'asc');
+
+  const displayStudents = useMemo(
+    () =>
+      students.map((student) => ({
+        id: student.id,
+        name: formatStudentFullName(student),
+        studentId: student.login,
+        attendance: getAttendancePercentForStudent(student, attendanceByLogin),
+      })),
+    [students, attendanceByLogin]
+  );
+
+  const sortedDisplayStudents = useMemo(
+    () =>
+      listSort.sortItems(displayStudents, {
+        name: (s) => `${s.name}|${s.studentId}`,
+        attendance: (s) => s.attendance,
+      }),
+    [displayStudents, listSort]
+  );
+
+  const sortedSearchResults = useMemo(
+    () =>
+      searchSort.sortItems(searchResults, {
+        name: formatStudentFullName,
+        login: (s) => s.login ?? '',
+        groupName: (s) => (s.groupName != null && s.groupName !== '' ? s.groupName : ''),
+        healthGroup: (s) => (typeof s.healthGroup === 'number' ? s.healthGroup : -1),
+        attendance: (s) => getAttendancePercentForStudent(s, attendanceByLogin),
+      }),
+    [searchResults, searchSort, attendanceByLogin]
+  );
 
   return (
-    <div className="admin-page">
-      {/* Навигация*/}
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="nav-left">
-            <h1 className="logo">РУТ <span>СПОРТ</span></h1>
-            <span className="admin-badge">АДМИН ПАНЕЛЬ</span>
-          </div>
-          <div className="nav-right">
-            <button
-              type="button"
-              className="logout-btn"
-              onClick={() => navigate('/')}
-            >
-              Выйти
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Основной контент с синей боковой панелью */}
-      <div className="admin-container">
-        {/* СИНЯЯ БОКОВАЯ ПАНЕЛЬ - СПРАВА ОТ НЕЁ ОСНОВНОЙ КОНТЕНТ */}
-        <aside className="admin-sidebar">
+    <CabinetLayout
+      badge="АДМИН ПАНЕЛЬ"
+      rightContent={
+        <button type="button" className="logout-btn" onClick={() => navigate('/')}>
+          Выйти
+        </button>
+      }
+      sidebar={
+        <>
           <div className="sidebar-section">
             <h3>Управление</h3>
             <button 
@@ -409,61 +497,54 @@ export const AdminPage = () => {
             </button>
           </div>
 
-          <div className="sidebar-section">
-            <h3>Статистика</h3>
-            <div className="stat-item">
-              <span>Средняя посещаемость</span>
-              <strong>{statistics.averageAttendance}%</strong>
-            </div>
-            <div className="stat-item">
-              <span>Занятий проведено</span>
-              <strong>{statistics.totalClasses}</strong>
-            </div>
-            <div className="stat-item">
-              <span>Лучший студент</span>
-              <strong>{statistics.bestStudent.name}</strong>
-              <small>{statistics.bestStudent.attendance}% посещаемость</small>
-            </div>
-          </div>
-        </aside>
-
-        {/* ОСНОВНАЯ ОБЛАСТЬ - меняется в зависимости от выбранной кнопки */}
-        <main className="admin-main">
-          
+        </>
+      }
+    >
           {/* Вкладка: СПИСОК СТУДЕНТОВ */}
           {activeTab === 'students' && (
             <>
-              {(error || listNotice.text) && (
-                <div className="admin-notices">
-                  {error ? (
-                    <div className="form-alert form-alert--error" role="alert">
-                      <span className="form-alert-text">{error}</span>
-                      <button type="button" className="form-alert-dismiss" onClick={() => setError('')} aria-label="Закрыть">×</button>
-                    </div>
-                  ) : null}
-                  {listNotice.text ? (
-                    <div className={`form-alert form-alert--${listNotice.variant}`} role="status">
-                      <span className="form-alert-text">{listNotice.text}</span>
-                      <button type="button" className="form-alert-dismiss" onClick={() => setListNotice({ variant: '', text: '' })} aria-label="Закрыть">×</button>
-                    </div>
-                  ) : null}
-                </div>
-              )}
+              <NoticesBar
+                error={error}
+                notice={listNotice}
+                onDismissError={() => setError('')}
+                onDismissNotice={() => setListNotice({ variant: '', text: '' })}
+              />
               <div className="table-wrapper">
-                <div className="table-header">
-                  <p className="subtitle">Список студентов | КАФЕДРА ФИЗИЧЕСКОЙ КУЛЬТУРЫ</p>
+                <div className="table-header table-header--with-action">
+                  <p className="subtitle">Список студентов</p>
+                  <button
+                    type="button"
+                    className="admin-refresh-btn"
+                    onClick={() => fetchStudents()}
+                    disabled={loading}
+                    title="Подтянуть актуальную посещаемость с сервера"
+                  >
+                    {loading ? 'Обновление…' : '↻ Обновить'}
+                  </button>
                 </div>
 
                 <table className="students-table">
                   <thead>
                     <tr>
-                      <th>СТУДЕНТ</th>
-                      <th>ПОСЕЩАЕМОСТЬ</th>
+                      <SortableTh
+                        label="СТУДЕНТ"
+                        columnKey="name"
+                        sortKey={listSort.sortKey}
+                        sortDirection={listSort.sortDirection}
+                        onSort={listSort.toggleSort}
+                      />
+                      <SortableTh
+                        label="ПОСЕЩАЕМОСТЬ"
+                        columnKey="attendance"
+                        sortKey={listSort.sortKey}
+                        sortDirection={listSort.sortDirection}
+                        onSort={listSort.toggleSort}
+                      />
                       <th>ДЕЙСТВИЯ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayStudents.map((student) => (
+                    {sortedDisplayStudents.map((student) => (
                       <tr key={student.id}>
                         <td>
                           <div className="student-info">
@@ -489,23 +570,6 @@ export const AdminPage = () => {
                 </table>
               </div>
 
-              <div className="stats-cards">
-                <div className="stat-card">
-                  <div className="stat-card-value">{statistics.averageAttendance}%</div>
-                  <div className="stat-card-label">СРЕДНЯЯ ПОСЕЩАЕМОСТЬ</div>
-                  <div className="stat-card-change">+2.4% с прошлого месяца</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card-value">{statistics.totalClasses}</div>
-                  <div className="stat-card-label">ЗАНЯТИЙ ПРОВЕДЕНО</div>
-                  <div className="stat-card-change">Всего в семестре: 48</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-card-value">{statistics.bestStudent.attendance}%</div>
-                  <div className="stat-card-label">ЛУЧШИЙ СТУДЕНТ</div>
-                  <div className="stat-card-change">{statistics.bestStudent.name}</div>
-                </div>
-              </div>
             </>
           )}
 
@@ -519,7 +583,7 @@ export const AdminPage = () => {
                 {addLookupsLoadState === 'error' ? (
                   <div className="form-alert form-alert--error form-alert--stack groups-load-error" role="alert">
                     <div>{addLookupsError}</div>
-                    <button type="button" className="retry-groups-btn" onClick={() => fetchAddFormLookups()}>
+                    <button type="button" className="retry-groups-btn" onClick={() => fetchLookups()}>
                       Повторить загрузку
                     </button>
                   </div>
@@ -646,9 +710,7 @@ export const AdminPage = () => {
                         ) : (
                           healthGroups.map((hg) => (
                             <option key={hg.id} value={hg.id}>
-                              {hg.description != null && String(hg.description).trim() !== ''
-                                ? hg.description
-                                : `Группа ${hg.name ?? hg.id}`}
+                              {formatHealthGroupLabel(hg)}
                             </option>
                           ))
                         )}
@@ -756,10 +818,19 @@ export const AdminPage = () => {
             <div className="search-panel">
               <div className="panel-header">
                 <h2>🔍 Поиск студентов</h2>
-                <p>Выберите тип поиска и заполните поля — запросы уходят на соответствующие эндпоинты API.</p>
+                <p>Выберите тип поиска и заполните поля.</p>
               </div>
 
               <form className="search-form search-form-extended" onSubmit={handleSearch}>
+                {addLookupsLoadState === 'error' ? (
+                  <div className="form-alert form-alert--error form-alert--stack" role="alert">
+                    <div>{addLookupsError}</div>
+                    <button type="button" className="retry-groups-btn" onClick={() => fetchLookups()}>
+                      Повторить загрузку
+                    </button>
+                  </div>
+                ) : null}
+
                 <div className="form-group search-mode-group">
                   <label htmlFor="search-mode">Тип поиска</label>
                   <select
@@ -767,7 +838,14 @@ export const AdminPage = () => {
                     className="form-input"
                     value={searchForm.mode}
                     onChange={(e) => {
-                      setSearchForm({ ...initialSearchForm(), mode: e.target.value });
+                      setSearchForm(
+                        applyLookupDefaultsToSearchForm(
+                          { ...initialSearchForm(), mode: e.target.value },
+                          groups,
+                          healthGroups,
+                          sections
+                        )
+                      );
                       setSearchError('');
                       setSearchResults([]);
                       setShowSearchResults(false);
@@ -775,121 +853,122 @@ export const AdminPage = () => {
                   >
                     <option value="login">По логину</option>
                     <option value="fullName">По ФИО</option>
-                    <option value="group">По ID учебной группы</option>
-                    <option value="section">По ID секции</option>
+                    <option value="group">По учебной группе</option>
+                    <option value="section">По секции</option>
                     <option value="healthGroup">По медицинской группе</option>
-                    <option value="all">Все студенты (find-all)</option>
+                    <option value="all">Все студенты</option>
                   </select>
                 </div>
 
                 {searchForm.mode === 'login' && (
-                  <div className="form-group">
-                    <label htmlFor="search-login">Логин</label>
-                    <input
-                      id="search-login"
-                      type="text"
-                      className="form-input"
-                      placeholder="ivanov"
-                      autoComplete="off"
-                      value={searchForm.login}
-                      onChange={(e) => setSearchForm({ ...searchForm, login: e.target.value })}
-                    />
-                  </div>
+                  <LoginSearchField
+                    login={searchForm.login}
+                    students={students}
+                    studentsLoading={loading && students.length === 0}
+                    onChange={(value) => setSearchForm((prev) => ({ ...prev, login: value }))}
+                  />
                 )}
 
                 {searchForm.mode === 'fullName' && (
-                  <div className="form-row form-row--triple search-name-row">
-                    <div className="form-group">
-                      <label htmlFor="search-last-name">Фамилия</label>
-                      <input
-                        id="search-last-name"
-                        type="text"
-                        className="form-input"
-                        placeholder="Иванов"
-                        value={searchForm.lastName}
-                        onChange={(e) => setSearchForm({ ...searchForm, lastName: e.target.value })}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="search-first-name">Имя</label>
-                      <input
-                        id="search-first-name"
-                        type="text"
-                        className="form-input"
-                        placeholder="Иван"
-                        value={searchForm.firstName}
-                        onChange={(e) => setSearchForm({ ...searchForm, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="search-patronymic">Отчество</label>
-                      <input
-                        id="search-patronymic"
-                        type="text"
-                        className="form-input"
-                        placeholder="Иванович (необязательно)"
-                        value={searchForm.patronymic}
-                        onChange={(e) => setSearchForm({ ...searchForm, patronymic: e.target.value })}
-                      />
-                    </div>
-                  </div>
+                  <FullNameSearchFields
+                    lastName={searchForm.lastName}
+                    firstName={searchForm.firstName}
+                    patronymic={searchForm.patronymic}
+                    students={students}
+                    studentsLoading={loading && students.length === 0}
+                    onChange={(patch) => setSearchForm((prev) => ({ ...prev, ...patch }))}
+                  />
                 )}
 
                 {searchForm.mode === 'group' && (
                   <div className="form-group">
-                    <label htmlFor="search-group-id">ID группы (group-id)</label>
-                    <input
-                      id="search-group-id"
-                      type="number"
-                      min={1}
-                      step={1}
+                    <label htmlFor="search-group-select">Учебная группа</label>
+                    <select
+                      id="search-group-select"
                       className="form-input"
-                      placeholder="1"
                       value={searchForm.groupId}
+                      disabled={addLookupsLoadState !== 'success' || groups.length === 0}
                       onChange={(e) => setSearchForm({ ...searchForm, groupId: e.target.value })}
-                    />
+                    >
+                      {groups.length === 0 ? (
+                        <option value="">
+                          {addLookupsLoadState === 'loading' ? 'Загрузка…' : 'Нет групп'}
+                        </option>
+                      ) : (
+                        groups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.institute != null && String(g.institute).trim() !== ''
+                              ? `${g.name} (${g.institute})`
+                              : g.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {addLookupsLoadState === 'success' && groups.length === 0 ? (
+                      <p className="form-hint">Сервер вернул пустой список учебных групп.</p>
+                    ) : null}
                   </div>
                 )}
 
                 {searchForm.mode === 'section' && (
                   <div className="form-group">
-                    <label htmlFor="search-section-id">ID секции (section-id)</label>
-                    <input
-                      id="search-section-id"
-                      type="number"
-                      min={1}
-                      step={1}
+                    <label htmlFor="search-section-select">Секция</label>
+                    <select
+                      id="search-section-select"
                       className="form-input"
-                      placeholder="1"
                       value={searchForm.sectionId}
+                      disabled={addLookupsLoadState !== 'success' || sections.length === 0}
                       onChange={(e) => setSearchForm({ ...searchForm, sectionId: e.target.value })}
-                    />
+                    >
+                      {sections.length === 0 ? (
+                        <option value="">
+                          {addLookupsLoadState === 'loading' ? 'Загрузка…' : 'Нет секций'}
+                        </option>
+                      ) : (
+                        sections.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {addLookupsLoadState === 'success' && sections.length === 0 ? (
+                      <p className="form-hint">Сервер вернул пустой список секций.</p>
+                    ) : null}
                   </div>
                 )}
 
                 {searchForm.mode === 'healthGroup' && (
                   <div className="form-group">
-                    <label htmlFor="search-health-group">Медицинская группа</label>
+                    <label htmlFor="search-health-group">Группа здоровья</label>
                     <select
                       id="search-health-group"
                       className="form-input"
-                      value={searchForm.healthGroupId}
+                      value={searchForm.healthGroupId === '' ? '' : searchForm.healthGroupId}
+                      disabled={addLookupsLoadState !== 'success' || healthGroups.length === 0}
                       onChange={(e) =>
-                        setSearchForm({ ...searchForm, healthGroupId: Number(e.target.value) })
+                        setSearchForm({
+                          ...searchForm,
+                          healthGroupId: e.target.value === '' ? '' : e.target.value,
+                        })
                       }
                     >
-                      <option value={1}>1</option>
-                      <option value={2}>2</option>
-                      <option value={3}>3</option>
+                      {healthGroups.length === 0 ? (
+                        <option value="">
+                          {addLookupsLoadState === 'loading' ? 'Загрузка…' : 'Нет мед. групп'}
+                        </option>
+                      ) : (
+                        healthGroups.map((hg) => (
+                          <option key={hg.id} value={hg.id}>
+                            {formatHealthGroupLabel(hg)}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {addLookupsLoadState === 'success' && healthGroups.length === 0 ? (
+                      <p className="form-hint">Сервер вернул пустой список медицинских групп.</p>
+                    ) : null}
                   </div>
-                )}
-
-                {searchForm.mode === 'all' && (
-                  <p className="form-hint search-all-hint">
-                    Загрузит полный список через <span className="mono">GET /api/students/find-all</span> (как на
-                    вкладке «Список студентов», но результат показывается здесь).
-                  </p>
                 )}
 
                 {searchError ? (
@@ -899,7 +978,19 @@ export const AdminPage = () => {
                 ) : null}
 
                 <div className="search-actions">
-                  <button type="submit" className="search-btn" disabled={loading}>
+                  <button
+                    type="submit"
+                    className="search-btn"
+                    disabled={
+                      loading ||
+                      (searchForm.mode === 'group' &&
+                        (addLookupsLoadState !== 'success' || groups.length === 0)) ||
+                      (searchForm.mode === 'section' &&
+                        (addLookupsLoadState !== 'success' || sections.length === 0)) ||
+                      (searchForm.mode === 'healthGroup' &&
+                        (addLookupsLoadState !== 'success' || healthGroups.length === 0))
+                    }
+                  >
                     {loading ? 'Поиск...' : searchForm.mode === 'all' ? 'Загрузить всех' : 'Найти'}
                   </button>
                 </div>
@@ -913,26 +1004,56 @@ export const AdminPage = () => {
                       <table className="results-table">
                         <thead>
                           <tr>
-                            <th>Студент</th>
-                            <th>Логин</th>
-                            <th>Группа</th>
-                            <th>Мед. гр.</th>
-                            <th>Посещаемость</th>
+                            <SortableTh
+                              label="Студент"
+                              columnKey="name"
+                              sortKey={searchSort.sortKey}
+                              sortDirection={searchSort.sortDirection}
+                              onSort={searchSort.toggleSort}
+                            />
+                            <SortableTh
+                              label="Логин"
+                              columnKey="login"
+                              sortKey={searchSort.sortKey}
+                              sortDirection={searchSort.sortDirection}
+                              onSort={searchSort.toggleSort}
+                            />
+                            <SortableTh
+                              label="Группа"
+                              columnKey="groupName"
+                              sortKey={searchSort.sortKey}
+                              sortDirection={searchSort.sortDirection}
+                              onSort={searchSort.toggleSort}
+                            />
+                            <SortableTh
+                              label="Мед. гр."
+                              columnKey="healthGroup"
+                              sortKey={searchSort.sortKey}
+                              sortDirection={searchSort.sortDirection}
+                              onSort={searchSort.toggleSort}
+                            />
+                            <SortableTh
+                              label="Посещаемость"
+                              columnKey="attendance"
+                              sortKey={searchSort.sortKey}
+                              sortDirection={searchSort.sortDirection}
+                              onSort={searchSort.toggleSort}
+                            />
                             <th>Действия</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {searchResults.map((student) => (
+                          {sortedSearchResults.map((student) => (
                             <tr key={`${student.id}-${student.login}`}>
                               <td>
-                                <strong>
-                                  {student.lastName} {student.firstName} {student.patronymic || ''}
-                                </strong>
+                                <strong>{formatStudentFullName(student)}</strong>
                               </td>
                               <td>{student.login}</td>
                               <td>{student.groupName != null && student.groupName !== '' ? student.groupName : '—'}</td>
-                              <td>{typeof student.healthGroup === 'number' ? student.healthGroup : '—'}</td>
-                              <td>{computeAttendanceFromExist(student.exist)}%</td>
+                              <td>{formatHealthGroupValue(student.healthGroup, healthGroups)}</td>
+                              <td>
+                                {getAttendancePercentForStudent(student, attendanceByLogin)}%
+                              </td>
                               <td>
                                 <button type="button" className="action-btn edit" aria-label="Редактировать">
                                   ✏️
@@ -957,20 +1078,6 @@ export const AdminPage = () => {
             </div>
           )}
 
-        </main>
-      </div>
-
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-logo">РУТ СПОРТ</div>
-          <p>© 2024 РУТ (МИИТ) Спортивный отдел</p>
-          <div className="footer-links">
-            <a href="#">Контакты</a>
-            <a href="#">О портале</a>
-            <a href="#">Политика конфиденциальности</a>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </CabinetLayout>
   );
 };

@@ -1,0 +1,35 @@
+.sortable-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sortable-th:hover {
+  color: #0d2b4e;
+}
+
+.sortable-th-icon::before {
+  content: '↕';
+  font-size: 11px;
+  opacity: 0.35;
+}
+
+.sortable-th--active.sortable-th--asc .sortable-th-icon::before {
+  content: '↑';
+  opacity: 1;
+  color: #0d2b4e;
+}
+
+.sortable-th--active.sortable-th--desc .sortable-th-icon::before {
+  content: '↓';
+  opacity: 1;
+  color: #0d2b4e;
+}

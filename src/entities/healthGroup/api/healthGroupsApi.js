@@ -1,4 +1,4 @@
-import { apiClient } from '../../../shared/lib/api/axios';
+import { apiClient } from '/shared/lib/api/axios';
 
 export const healthGroupsApi = {
   findAll: async () => {

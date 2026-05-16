@@ -1,0 +1,270 @@
+.teacher-page .teacher-badge {
+  background: #0d2b4e;
+}
+
+.teacher-greeting {
+  font-size: 14px;
+  color: #555;
+  margin-right: 16px;
+  white-space: nowrap;
+}
+
+.teacher-main {
+  flex: 1;
+  min-width: 0;
+  contain: layout style;
+}
+
+.teacher-sidebar {
+  align-self: flex-start;
+}
+
+.teacher-sidebar-stats .stat-item--lesson {
+  min-height: 72px;
+}
+
+.teacher-sidebar-stats .stat-placeholder {
+  color: #8aa4c0;
+  font-weight: 400;
+}
+
+/* Зарезервированное место под уведомления — main не прыгает */
+.teacher-notices {
+  min-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  transition: min-height 0.15s ease, margin-bottom 0.15s ease;
+}
+
+.teacher-notices--visible {
+  min-height: 52px;
+  margin-bottom: 16px;
+}
+
+.teacher-notice-slot {
+  display: none;
+}
+
+/* Панели вкладок: одна активная, фиксированная мин. высота контейнера */
+.teacher-panels {
+  position: relative;
+  min-height: 280px;
+}
+
+.teacher-panel {
+  display: none;
+}
+
+.teacher-panel--active {
+  display: block;
+  animation: teacher-panel-in 0.12s ease;
+}
+
+@keyframes teacher-panel-in {
+  from {
+    opacity: 0.92;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.teacher-panel-body {
+  position: relative;
+}
+
+.teacher-placeholder-row td {
+  text-align: center;
+  color: #888;
+  padding: 32px 16px !important;
+}
+
+.teacher-action-link {
+  background: none;
+  border: none;
+  color: #4a90e2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.teacher-action-link:hover {
+  text-decoration: underline;
+}
+
+.lesson-row--selected td {
+  background: #f0f7ff;
+}
+
+.teacher-loading-hint,
+.teacher-empty-hint {
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin: 0;
+}
+
+.teacher-section-row {
+  max-width: 420px;
+  margin-bottom: 20px;
+}
+
+.teacher-inline-table {
+  margin-top: 0;
+  padding-top: 0;
+  box-shadow: none;
+  position: relative;
+}
+
+.attendance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.teacher-lesson-picker {
+  flex: 1;
+  min-width: 240px;
+}
+
+.teacher-lesson-picker span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.teacher-checklist-shell {
+  position: relative;
+  min-height: 200px;
+}
+
+.attendance-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attendance-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 52px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid #eee;
+  transition: border-color 0.15s ease;
+}
+
+.attendance-check-item:hover {
+  border-color: #4a90e2;
+}
+
+.attendance-check-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4a90e2;
+  flex-shrink: 0;
+}
+
+.attendance-check-name {
+  font-weight: 600;
+  color: #0d2b4e;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.attendance-check-login {
+  font-size: 12px;
+  color: #888;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attendance-pill {
+  flex-shrink: 0;
+  width: 72px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+  margin-left: auto;
+}
+
+.attendance-pill-text {
+  display: inline-block;
+  min-width: 28px;
+}
+
+.attendance-pill.present {
+  background: #e6f7e6;
+  color: #2e7d32;
+}
+
+.attendance-pill.absent {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.teacher-history-form {
+  max-width: 640px;
+  align-items: flex-end;
+}
+
+.teacher-field-spacer {
+  display: block;
+  height: 20px;
+}
+
+.teacher-history-actions .search-btn {
+  width: 100%;
+}
+
+.history-summary-cards,
+.teacher-summary-slot {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  min-height: 120px;
+}
+
+.stat-card--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.teacher-history-table {
+  min-height: 240px;
+}
+
+.lessons-table {
+  min-height: 200px;
+}
+
+@media (max-width: 900px) {
+  .teacher-panels {
+    min-height: 420px;
+  }
+
+  .history-summary-cards,
+  .teacher-summary-slot {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .attendance-check-name {
+    min-width: 100px;
+  }
+}

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import loginImage from '../../../shared/images/Miit.jpg';
+import loginImage from '/shared/images/Miit.jpg';
+import { teachersApi } from '/entities/teacher';
+import { setTeacherSession } from '/shared/lib/session/teacherSession';
 
-const MOCK_LOGIN = 'admin';
-const MOCK_PASSWORD = 'admin';
+const MOCK_ADMIN_LOGIN = 'admin';
+const MOCK_ADMIN_PASSWORD = 'admin';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -14,24 +16,43 @@ export const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
     setPasswordError('');
 
     const trimmedLogin = login.trim();
 
-    if (trimmedLogin !== MOCK_LOGIN) {
-      setLoginError('Неверный логин');
-      return;
-    }
-    if (password !== MOCK_PASSWORD) {
-      setPasswordError('Неверный пароль');
+    if (!trimmedLogin) {
+      setLoginError('Введите логин');
       return;
     }
 
-    navigate('/admin');
+    if (trimmedLogin === MOCK_ADMIN_LOGIN) {
+      if (password !== MOCK_ADMIN_PASSWORD) {
+        setPasswordError('Неверный пароль');
+        return;
+      }
+      navigate('/admin');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const teacher = await teachersApi.findByLogin(trimmedLogin);
+      if (teacher?.login) {
+        setTeacherSession(teacher);
+        navigate('/teacher');
+        return;
+      }
+      setLoginError('Преподаватель не найден');
+    } catch {
+      setLoginError('Преподаватель с таким логином не найден');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -134,8 +155,8 @@ export const LoginPage = () => {
                 </label>
               </div>
 
-              <button type="submit" className="login-button">
-                Войти →
+              <button type="submit" className="login-button" disabled={submitting}>
+                {submitting ? 'Вход…' : 'Войти →'}
               </button>
             </form>
 

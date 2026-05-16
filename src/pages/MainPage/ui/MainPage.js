@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './MainPage.css';
-import basketball from '../../../shared/images/basketball.jpg';
-import swim from '../../../shared/images/swim.jpg';
-import volleyball from '../../../shared/images/volleyball.jpg';
-import martialArts from '../../../shared/images/martialArts.jpg';
-import cup from '../../../shared/images/cup.jpg';
-import masterClass from '../../../shared/images/masterClass.jpg';
-import bgImage from '../../../shared/images/backgroundImage.jpg';
+import basketball from '/shared/images/basketball.jpg';
+import swim from '/shared/images/swim.jpg';
+import volleyball from '/shared/images/volleyball.jpg';
+import martialArts from '/shared/images/martialArts.jpg';
+import cup from '/shared/images/cup.jpg';
+import masterClass from '/shared/images/masterClass.jpg';
+import bgImage from '/shared/images/backgroundImage.jpg';
 
 export const MainPage = () => {
   const [activePage, setActivePage] = useState('home');
