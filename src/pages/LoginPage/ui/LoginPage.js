@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 import loginImage from '/shared/images/Miit.jpg';
-import { teachersApi } from '/entities/teacher';
+import { authApi } from '/entities/auth';
 import { setTeacherSession } from '/shared/lib/session/teacherSession';
+import { setStudentSession } from '/shared/lib/session/studentSession';
 
 const MOCK_ADMIN_LOGIN = 'admin';
 const MOCK_ADMIN_PASSWORD = 'admin';
@@ -30,6 +31,11 @@ export const LoginPage = () => {
       return;
     }
 
+    if (!password) {
+      setPasswordError('Введите пароль');
+      return;
+    }
+
     if (trimmedLogin === MOCK_ADMIN_LOGIN) {
       if (password !== MOCK_ADMIN_PASSWORD) {
         setPasswordError('Неверный пароль');
@@ -41,15 +47,26 @@ export const LoginPage = () => {
 
     setSubmitting(true);
     try {
-      const teacher = await teachersApi.findByLogin(trimmedLogin);
-      if (teacher?.login) {
-        setTeacherSession(teacher);
+      const user = await authApi.login(trimmedLogin, password);
+      if (user.role === 'student') {
+        setStudentSession(user);
+        navigate('/student');
+        return;
+      }
+      if (user.role === 'teacher' || user.role === 'moderator') {
+        setTeacherSession(user);
         navigate('/teacher');
         return;
       }
-      setLoginError('Преподаватель не найден');
-    } catch {
-      setLoginError('Преподаватель с таким логином не найден');
+      setLoginError('Неизвестная роль пользователя');
+    } catch (err) {
+      const status = err.response?.status;
+      const message = err.response?.data?.message;
+      if (status === 401) {
+        setPasswordError(message || 'Неверный логин или пароль');
+      } else {
+        setLoginError(message || 'Не удалось войти. Проверьте, что API запущен.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -105,7 +122,7 @@ export const LoginPage = () => {
                     setLogin(e.target.value);
                     setLoginError('');
                   }}
-                  placeholder="admin"
+                  placeholder="student3"
                   autoComplete="username"
                 />
                 {loginError ? <p className="field-error">{loginError}</p> : null}

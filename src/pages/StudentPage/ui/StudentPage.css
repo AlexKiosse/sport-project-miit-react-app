@@ -1,0 +1,77 @@
+.student-page .student-badge {
+  background: #1a5c3a;
+}
+
+.student-greeting {
+  font-size: 14px;
+  color: #555;
+  margin-right: 16px;
+  white-space: nowrap;
+}
+
+.student-main {
+  flex: 1;
+  min-width: 0;
+  contain: layout style;
+}
+
+.student-panels {
+  position: relative;
+}
+
+.student-panel {
+  display: none;
+}
+
+.student-panel--active {
+  display: block;
+}
+
+.student-panel-body {
+  position: relative;
+}
+
+.student-section-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.student-section-actions {
+  flex: 0 0 auto;
+}
+
+.student-field-spacer {
+  display: block;
+  height: 22px;
+}
+
+.student-hint {
+  margin-top: 12px;
+  color: #5a6b7d;
+  font-size: 14px;
+}
+
+.student-placeholder-row td {
+  text-align: center;
+  color: #8aa4c0;
+  padding: 24px;
+}
+
+.student-booked-label {
+  color: #1a5c3a;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.student-notices {
+  min-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.student-notices--visible {
+  min-height: 52px;
+  margin-bottom: 12px;
+}

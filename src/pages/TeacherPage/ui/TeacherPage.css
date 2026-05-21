@@ -9,6 +9,21 @@
   white-space: nowrap;
 }
 
+.teacher-admin-link {
+  margin-right: 12px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #0d2b4e;
+  border-radius: 6px;
+  background: transparent;
+  color: #0d2b4e;
+  cursor: pointer;
+}
+
+.teacher-admin-link:hover {
+  background: #e8f4fd;
+}
+
 .teacher-main {
   flex: 1;
   min-width: 0;
@@ -26,6 +41,48 @@
 .teacher-sidebar-stats .stat-placeholder {
   color: #8aa4c0;
   font-weight: 400;
+}
+
+.teacher-sidebar-stats .stat-item--may22 strong {
+  color: #0d2b4e;
+  font-size: 22px;
+}
+
+.teacher-may22-summary {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  background: #e8f4fd;
+  border-radius: 8px;
+  color: #0d47a1;
+  font-size: 14px;
+}
+
+.teacher-may22-summary strong {
+  font-size: 18px;
+}
+
+.lesson-row--may22 {
+  background: #f0f7ff;
+}
+
+.lesson-row--may22 td:first-child {
+  font-weight: 600;
+}
+
+.teacher-expected-cell {
+  white-space: nowrap;
+}
+
+.teacher-expected-count {
+  font-weight: 700;
+  font-size: 16px;
+  color: #0d2b4e;
+}
+
+.teacher-expected-label {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #5a6b7d;
 }
 
 /* Зарезервированное место под уведомления — main не прыгает */

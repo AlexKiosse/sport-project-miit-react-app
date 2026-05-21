@@ -115,6 +115,13 @@ export const studentsApi = {
     return response.data;
   },
 
+  enrollSection: async (login, sectionId) => {
+    const response = await apiClient.put('/api/students/enroll-section', null, {
+      params: { login, 'section-id': sectionId },
+    });
+    return response.data;
+  },
+
   checkStudentExists: async (login) => {
     const response = await apiClient.get('/api/students/is-exists-by-login', {
       params: { login }

@@ -37,4 +37,16 @@ export const visitsApi = {
     });
     return response.data;
   },
+
+  /**
+   * Запись студента на тренировку (создание visit с is_exists=false — запланировано).
+   */
+  bookLesson: async (studentLogin, lessonId) => {
+    const response = await apiClient.post('/api/visits/create', {
+      studentLogin,
+      lessonId,
+      isExists: false,
+    });
+    return response.data;
+  },
 };

@@ -17,4 +17,23 @@ export const sectionsApi = {
     );
     return response.data;
   },
+
+  enrollStudent: async (sectionId, studentLogin) => {
+    const response = await apiClient.post(`/api/section/${sectionId}/enroll`, null, {
+      params: { studentLogin },
+    });
+    return response.data;
+  },
+
+  /**
+   * @param {number} sectionId
+   * @param {string} [since] ISO-8601 datetime
+   */
+  getNewEnrollments: async (sectionId, since) => {
+    const params = since ? { since } : {};
+    const response = await apiClient.get(`/api/section/${sectionId}/new-enrollments`, {
+      params,
+    });
+    return response.data;
+  },
 };

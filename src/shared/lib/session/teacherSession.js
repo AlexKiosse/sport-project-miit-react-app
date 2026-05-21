@@ -20,6 +20,7 @@ export function setTeacherSession(teacher) {
       firstName: teacher.firstName,
       lastName: teacher.lastName,
       patronymic: teacher.patronymic,
+      isModerator: teacher.role === 'moderator' || teacher.isModerator === true,
     })
   );
 }

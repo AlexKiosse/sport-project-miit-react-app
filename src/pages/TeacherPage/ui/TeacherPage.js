@@ -21,11 +21,21 @@ import {
   formatPersonName,
 } from '/shared/lib/session/teacherSession';
 import { formatLessonDate, formatLessonDateShort } from '/shared/lib/format/formatLessonDate';
+import {
+  getSectionLastSeen,
+  markSectionSeen,
+} from '/shared/lib/session/teacherSectionSeen';
+
+const SECTION_SCHEDULE_DATE = '2026-05-22';
 
 function sortLessonsByDate(lessons) {
   return [...lessons].sort((a, b) =>
     compareDesc(parseISO(a.dateOfLesson), parseISO(b.dateOfLesson))
   );
+}
+
+function isSectionScheduleDay(dateStr) {
+  return dateStr === SECTION_SCHEDULE_DATE;
 }
 
 function normalizeVisitPresent(visit) {
@@ -72,6 +82,17 @@ export const TeacherPage = () => {
     [lessons, selectedLessonId]
   );
 
+  const may22ExpectedTotal = useMemo(() => {
+    return lessons
+      .filter((l) => isSectionScheduleDay(l.dateOfLesson))
+      .reduce((sum, l) => sum + (l.expectedStudentCount ?? 0), 0);
+  }, [lessons]);
+
+  const may22Lessons = useMemo(
+    () => lessons.filter((l) => isSectionScheduleDay(l.dateOfLesson)),
+    [lessons]
+  );
+
   useEffect(() => {
     if (!session) {
       navigate('/login', { replace: true });
@@ -108,12 +129,30 @@ export const TeacherPage = () => {
     }
   }, []);
 
+  const checkNewSectionMembers = useCallback(async (sectionId) => {
+    const since = getSectionLastSeen(sectionId);
+    try {
+      const enrollments = await sectionsApi.getNewEnrollments(Number(sectionId), since);
+      const list = Array.isArray(enrollments) ? enrollments : [];
+      if (list.length > 0) {
+        const names = list.map((e) => e.studentName || e.studentLogin).join(', ');
+        setNotice({
+          variant: 'info',
+          text: `Новый участник секции: ${names}`,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
   const loadSectionStudents = useCallback(async (sectionId) => {
     if (!sectionId) return;
     setSectionLoading(true);
     try {
       const data = await sectionsApi.getStudentsBySectionId(Number(sectionId));
       setSectionStudents(Array.isArray(data) ? data : []);
+      await checkNewSectionMembers(sectionId);
     } catch (err) {
       console.error(err);
       setError('Не удалось загрузить студентов секции');
@@ -121,7 +160,7 @@ export const TeacherPage = () => {
     } finally {
       setSectionLoading(false);
     }
-  }, []);
+  }, [checkNewSectionMembers]);
 
   const loadLessonAttendance = useCallback(
     async (lessonId) => {
@@ -290,6 +329,16 @@ export const TeacherPage = () => {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setError('');
+    if (tab === 'section' && selectedSectionId) {
+      checkNewSectionMembers(selectedSectionId);
+    }
+  };
+
+  const handleDismissNotice = () => {
+    if (selectedSectionId) {
+      markSectionSeen(selectedSectionId);
+    }
+    setNotice({ variant: '', text: '' });
   };
 
   const historyDates = useMemo(
@@ -328,6 +377,15 @@ export const TeacherPage = () => {
       rightContent={
         <>
           <span className="teacher-greeting">{teacherName}</span>
+          {session.isModerator ? (
+            <button
+              type="button"
+              className="teacher-admin-link"
+              onClick={() => navigate('/admin')}
+            >
+              Админ-панель
+            </button>
+          ) : null}
           <button type="button" className="logout-btn" onClick={handleLogout}>
             Выйти
           </button>
@@ -390,6 +448,13 @@ export const TeacherPage = () => {
                 <strong className="stat-placeholder">—</strong>
               )}
             </div>
+            {may22Lessons.length > 0 ? (
+              <div className="stat-item stat-item--may22">
+                <span>22 мая — ожидается</span>
+                <strong>{may22ExpectedTotal}</strong>
+                <small>чел. на {may22Lessons.length} тренировк.</small>
+              </div>
+            ) : null}
           </div>
         </>
       }
@@ -399,7 +464,7 @@ export const TeacherPage = () => {
         notice={notice}
         reserveSlots
         onDismissError={() => setError('')}
-        onDismissNotice={() => setNotice({ variant: '', text: '' })}
+        onDismissNotice={handleDismissNotice}
       />
 
           <div className="teacher-panels">
@@ -409,6 +474,12 @@ export const TeacherPage = () => {
               <div className="table-wrapper teacher-panel-body">
                 <div className="table-header">
                   <p className="subtitle">Мои занятия | {session.login}</p>
+                  {may22Lessons.length > 0 ? (
+                    <p className="teacher-may22-summary">
+                      22 мая 2026: ожидается{' '}
+                      <strong>{may22ExpectedTotal}</strong> человек на тренировки секции
+                    </p>
+                  ) : null}
                 </div>
                 <table className="students-table lessons-table">
                   <thead>
@@ -416,13 +487,14 @@ export const TeacherPage = () => {
                       <th>ДАТА</th>
                       <th>ВРЕМЯ</th>
                       <th>ДИСЦИПЛИНА</th>
+                      <th>ОЖИДАЕТСЯ</th>
                       <th>ДЕЙСТВИЯ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lessons.length === 0 ? (
                       <tr className="teacher-placeholder-row">
-                        <td colSpan={4}>
+                        <td colSpan={5}>
                           {lessonsLoading ? 'Загрузка…' : 'Занятий пока нет'}
                         </td>
                       </tr>
@@ -430,15 +502,24 @@ export const TeacherPage = () => {
                       lessons.map((lesson) => (
                         <tr
                           key={lesson.id}
-                          className={
-                            selectedLessonId === lesson.id ? 'lesson-row--selected' : ''
-                          }
+                          className={[
+                            selectedLessonId === lesson.id ? 'lesson-row--selected' : '',
+                            isSectionScheduleDay(lesson.dateOfLesson) ? 'lesson-row--may22' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
                         >
                           <td>{formatLessonDate(lesson.dateOfLesson)}</td>
                           <td>
                             {lesson.startAt} – {lesson.endAt}
                           </td>
                           <td>{lesson.disciplineName || '—'}</td>
+                          <td className="teacher-expected-cell">
+                            <span className="teacher-expected-count">
+                              {lesson.expectedStudentCount ?? 0}
+                            </span>
+                            <span className="teacher-expected-label">чел.</span>
+                          </td>
                           <td>
                             <button
                               type="button"
