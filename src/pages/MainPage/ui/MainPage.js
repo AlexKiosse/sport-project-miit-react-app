@@ -19,7 +19,7 @@ export const MainPage = () => {
       <nav className="navbar">
         <div className="nav-container">
           <div className="nav-left">
-            <h1 className="logo">РУТ <span>СПОРТ</span></h1>
+            <h1 className="logo">Все на <span>спорт</span></h1>
           </div>
           <div className="nav-center">
             <button 
@@ -58,7 +58,7 @@ export const MainPage = () => {
       {/* Cекция c картинкой */}
       <section className="hero">
         <div className="hero-content">
-          <h1>Спортивный портал РУТ МИИТ</h1>
+          <h1>Все на спорт</h1>
           <p>Твой путь к спортивным достижениям начинается здесь. Выбирай секцию, следи за расписанием и становись частью большой семьи</p>
         </div>
       </section>
@@ -98,7 +98,7 @@ export const MainPage = () => {
         <div className="container">
           <h2 className="section-title">Спортивные секции</h2>
           <p className="section-subtitle">
-            Выберите направление, которое подходит именно вам. Все занятия бесплатны для студентов и сотрудников РУТ МИИТ.
+            Выберите направление, которое подходит именно вам. Все занятия бесплатны для студентов и сотрудников университета.
           </p>
           <div className="sports-grid">
             {/* Секция 1 */}

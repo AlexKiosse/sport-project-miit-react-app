@@ -76,11 +76,11 @@ export const LoginPage = () => {
     <div className="app">
       <div className="grid-container">
         <div className="left-panel">
-          <img src={loginImage} alt="Спорт в МИИТ" />
+          <img src={loginImage} alt="Все на спорт" />
           <div className="image-overlay">
             <div className="image-content">
               <p className="image-text">
-                Единая платформа для отслеживания спортивных успехов студентов РУТ (МИИТ)
+                Единая платформа для отслеживания спортивных успехов студентов
               </p>
             </div>
           </div>
@@ -99,7 +99,7 @@ export const LoginPage = () => {
             </button>
 
             <h1 className="main-title">
-              РУТ МИИТ
+              Все на спорт
               <br />
             </h1>
 

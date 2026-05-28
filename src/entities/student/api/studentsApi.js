@@ -108,6 +108,13 @@ export const studentsApi = {
     return response.data;
   },
 
+  updateHealthGroup: async (login, healthGroupId) => {
+    const response = await apiClient.put('/api/students/update-health-group', null, {
+      params: { login, healthGroupId },
+    });
+    return response.data;
+  },
+
   getSchedule: async (login) => {
     const response = await apiClient.get('/api/students/schedule', {
       params: { login }

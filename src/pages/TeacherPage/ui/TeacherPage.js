@@ -20,6 +20,7 @@ import {
   clearTeacherSession,
   formatPersonName,
 } from '/shared/lib/session/teacherSession';
+import { ProfileNameTrigger } from '/widgets/user-profile';
 import { formatLessonDate, formatLessonDateShort } from '/shared/lib/format/formatLessonDate';
 import {
   getSectionLastSeen,
@@ -76,6 +77,7 @@ export const TeacherPage = () => {
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const attendanceRequestRef = useRef(0);
+  const headerName = formatPersonName(session);
 
   const selectedLesson = useMemo(
     () => lessons.find((l) => l.id === selectedLessonId) ?? null,
@@ -364,7 +366,6 @@ export const TeacherPage = () => {
     return null;
   }
 
-  const teacherName = formatPersonName(session);
   const sectionStudentCount = sectionStudents.length;
 
   return (
@@ -376,7 +377,7 @@ export const TeacherPage = () => {
       badgeClassName="teacher-badge"
       rightContent={
         <>
-          <span className="teacher-greeting">{teacherName}</span>
+          <ProfileNameTrigger name={headerName} to="/teacher/profile" />
           {session.isModerator ? (
             <button
               type="button"
@@ -422,6 +423,13 @@ export const TeacherPage = () => {
               onClick={() => handleTabChange('history')}
             >
               📊 История посещаемости
+            </button>
+            <button
+              type="button"
+              className="sidebar-btn"
+              onClick={() => navigate('/teacher/profile')}
+            >
+              👤 Мой профиль
             </button>
           </div>
 

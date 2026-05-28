@@ -6,7 +6,8 @@ import './StudentPage.css';
 import { CabinetLayout } from '/widgets/cabinet-layout';
 import { NoticesBar } from '/widgets/notices-bar';
 import { PanelOverlay } from '/shared/ui/panel-overlay';
-import { sectionsApi } from '/entities/section';
+import { getEnrolledSectionsForStudent } from '/entities/section';
+import { EnrolledSectionsList } from '/shared/ui/enrolled-sections-list';
 import { lessonsApi } from '/entities/lesson';
 import { visitsApi } from '/entities/visit';
 import { studentsApi } from '/entities/student';
@@ -15,6 +16,7 @@ import {
   clearStudentSession,
   formatPersonName,
 } from '/shared/lib/session/studentSession';
+import { ProfileNameTrigger } from '/widgets/user-profile';
 import { formatLessonDate } from '/shared/lib/format/formatLessonDate';
 
 export const StudentPage = () => {
@@ -32,24 +34,25 @@ export const StudentPage = () => {
   const [schedule, setSchedule] = useState({});
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
-  const [sections, setSections] = useState([]);
-  const [selectedSectionId, setSelectedSectionId] = useState('');
-  const [enrolling, setEnrolling] = useState(false);
+  const [enrolledSections, setEnrolledSections] = useState([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
 
   const [upcomingLessons, setUpcomingLessons] = useState([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [bookingLessonId, setBookingLessonId] = useState(null);
   const [myVisitLessonIds, setMyVisitLessonIds] = useState(new Set());
+  const headerName = formatPersonName(session);
 
   const loadProfile = useCallback(async () => {
     if (!session?.login) return;
     setProfileLoading(true);
     try {
-      const data = await studentsApi.getStudentByLogin(session.login);
+      const [data, sections] = await Promise.all([
+        studentsApi.getStudentByLogin(session.login),
+        getEnrolledSectionsForStudent(session.login).catch(() => []),
+      ]);
       setProfile(data);
-      if (data?.sectionId) {
-        setSelectedSectionId(String(data.sectionId));
-      }
+      setEnrolledSections(sections);
     } catch (err) {
       console.error(err);
       setError('Не удалось загрузить профиль');
@@ -72,14 +75,18 @@ export const StudentPage = () => {
     }
   }, [session?.login]);
 
-  const loadSections = useCallback(async () => {
+  const loadEnrolledSections = useCallback(async () => {
+    if (!session?.login) return;
+    setSectionsLoading(true);
     try {
-      const data = await sectionsApi.getAll();
-      setSections(Array.isArray(data) ? data : []);
+      const sections = await getEnrolledSectionsForStudent(session.login);
+      setEnrolledSections(sections);
     } catch (err) {
       console.error(err);
+    } finally {
+      setSectionsLoading(false);
     }
-  }, []);
+  }, [session?.login]);
 
   const loadUpcomingLessons = useCallback(async () => {
     setLessonsLoading(true);
@@ -118,32 +125,13 @@ export const StudentPage = () => {
   useEffect(() => {
     if (!session) return;
     if (activeTab === 'schedule') loadSchedule();
-    if (activeTab === 'section') loadSections();
+    if (activeTab === 'section') loadEnrolledSections();
     if (activeTab === 'training') loadUpcomingLessons();
-  }, [activeTab, session, loadSchedule, loadSections, loadUpcomingLessons]);
+  }, [activeTab, session, loadSchedule, loadEnrolledSections, loadUpcomingLessons]);
 
   const handleLogout = () => {
     clearStudentSession();
     navigate('/');
-  };
-
-  const handleEnrollSection = async () => {
-    if (!selectedSectionId || !session?.login) return;
-    setEnrolling(true);
-    setError('');
-    try {
-      const updated = await studentsApi.enrollSection(session.login, Number(selectedSectionId));
-      setProfile(updated);
-      setNotice({
-        variant: 'success',
-        text: `Вы записаны в секцию «${updated.sectionName || 'секция'}»`,
-      });
-    } catch (err) {
-      console.error(err);
-      setError('Не удалось записаться в секцию');
-    } finally {
-      setEnrolling(false);
-    }
   };
 
   const handleBookLesson = async (lessonId) => {
@@ -171,8 +159,6 @@ export const StudentPage = () => {
     return null;
   }
 
-  const studentName = formatPersonName(session);
-
   return (
     <CabinetLayout
       pageClassName="student-page"
@@ -182,7 +168,7 @@ export const StudentPage = () => {
       badgeClassName="student-badge"
       rightContent={
         <>
-          <span className="student-greeting">{studentName}</span>
+          <ProfileNameTrigger name={headerName} to="/student/profile" />
           <button type="button" className="logout-btn" onClick={handleLogout}>
             Выйти
           </button>
@@ -204,7 +190,7 @@ export const StudentPage = () => {
               className={`sidebar-btn ${activeTab === 'section' ? 'active' : ''}`}
               onClick={() => setActiveTab('section')}
             >
-              🏃 Спортивная секция
+              🏃 Мои секции
             </button>
             <button
               type="button"
@@ -212,6 +198,13 @@ export const StudentPage = () => {
               onClick={() => setActiveTab('training')}
             >
               ✅ Запись на тренировку
+            </button>
+            <button
+              type="button"
+              className="sidebar-btn"
+              onClick={() => navigate('/student/profile')}
+            >
+              👤 Мой профиль
             </button>
           </div>
           <div className="sidebar-section student-sidebar-stats">
@@ -221,8 +214,12 @@ export const StudentPage = () => {
               <strong>{profile?.groupName || '—'}</strong>
             </div>
             <div className="stat-item">
-              <span>Секция</span>
-              <strong>{profile?.sectionName || 'не выбрана'}</strong>
+              <span>Секции</span>
+              <strong>
+                {enrolledSections.length > 0
+                  ? enrolledSections.map((s) => s.name).join(', ')
+                  : '—'}
+              </strong>
             </div>
             <div className="stat-item">
               <span>Мед. группа</span>
@@ -283,48 +280,13 @@ export const StudentPage = () => {
         >
           <div className="add-user-panel student-panel-body">
             <div className="panel-header">
-              <h2>🏃 Запись в спортивную секцию</h2>
-              <p>
-                {profile?.sectionName
-                  ? `Вы состоите в секции «${profile.sectionName}»`
-                  : 'Выберите секцию и подтвердите запись'}
-              </p>
+              <h2>🏃 Мои спортивные секции</h2>
+              <p>Секции, в которые вы записаны</p>
             </div>
-            <div className="form-row student-section-row">
-              <div className="form-group">
-                <label htmlFor="student-section-select">Секция</label>
-                <select
-                  id="student-section-select"
-                  className="form-input"
-                  value={selectedSectionId}
-                  onChange={(e) => setSelectedSectionId(e.target.value)}
-                  disabled={enrolling}
-                >
-                  <option value="">— выберите секцию —</option>
-                  {sections.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group student-section-actions">
-                <span className="student-field-spacer" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="submit-btn"
-                  disabled={!selectedSectionId || enrolling}
-                  onClick={handleEnrollSection}
-                >
-                  {enrolling ? 'Запись…' : 'Записаться в секцию'}
-                </button>
-              </div>
-            </div>
-            {profile?.sectionName ? (
-              <p className="student-hint">
-                Преподаватель увидит вас в списке участников секции после записи.
-              </p>
-            ) : null}
+            <EnrolledSectionsList
+              sections={enrolledSections}
+              loading={sectionsLoading || profileLoading}
+            />
           </div>
         </div>
 

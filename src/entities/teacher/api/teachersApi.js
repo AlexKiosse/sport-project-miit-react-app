@@ -19,4 +19,18 @@ export const teachersApi = {
     });
     return response.data;
   },
+
+  updateFullName: async (login, firstName, lastName, patronymic) => {
+    const response = await apiClient.put('/api/teachers/update-full-name', null, {
+      params: { login, firstName, lastName, patronymic },
+    });
+    return response.data;
+  },
+
+  updateLogin: async (oldLogin, newLogin) => {
+    const response = await apiClient.put('/api/teachers/update-login', null, {
+      params: { oldLogin, newLogin },
+    });
+    return response.data;
+  },
 };

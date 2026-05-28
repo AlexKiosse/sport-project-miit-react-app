@@ -8,7 +8,7 @@ export const CabinetHeader = ({ badge, badgeClassName = '', rightContent }) => (
     <div className="nav-container">
       <div className="nav-left">
         <h1 className="logo">
-          РУТ <span>СПОРТ</span>
+          Все на <span>спорт</span>
         </h1>
         {badge ? (
           <span className={`admin-badge ${badgeClassName}`.trim()}>{badge}</span>

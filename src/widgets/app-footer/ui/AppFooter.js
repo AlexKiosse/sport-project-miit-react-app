@@ -13,8 +13,8 @@ const DEFAULT_LINKS = [
 export const AppFooter = ({ links = DEFAULT_LINKS, showLinks = true }) => (
   <footer className="footer">
     <div className="footer-content">
-      <div className="footer-logo">РУТ СПОРТ</div>
-      <p>© 2024 РУТ (МИИТ) Спортивный отдел</p>
+      <div className="footer-logo">Все на спорт</div>
+      <p>© 2026 РУТ МИИТ</p>
       {showLinks && links.length > 0 ? (
         <div className="footer-links">
           {links.map((link) => (
